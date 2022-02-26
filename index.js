@@ -65,6 +65,7 @@ bot.on('messageCreate', (msg) => {
             // STEP 1: create date element
             const reminderTime = new Date()
 
+            // set dateTime
             const numberAndUnitRegex = /^\d+[smhdSMHD]$/
             const dateTimeRegex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/\d\d\d\d-([0-1][0-9]|2[0-3]):([0-5][0-9])$/
             const dateRegex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(\d\d\d\d)/
@@ -72,7 +73,6 @@ bot.on('messageCreate', (msg) => {
             const fullDateRegex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(\d\d\d\d)$/
             const fullTimeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/
             
-            // set dateTime
             if (numberAndUnitRegex.test(dateString)) {
                 // {number}{unit}
                 const timeUnit = dateString.slice(-1).toLowerCase()
@@ -117,16 +117,31 @@ bot.on('messageCreate', (msg) => {
                 reminderTime.setMonth(parseInt(month) - 1)
                 reminderTime.setFullYear(parseInt(year))
 
+                // set time to 00:00
+                reminderTime.setHours(0)
+                reminderTime.setMinutes(0)
+                
             } else if (fullTimeRegex.test(dateString)) {
                 // {hh:mm}
                 const [, hour, minute] = dateString.match(timeRegex)
                 reminderTime.setHours(parseInt(hour))
                 reminderTime.setMinutes(parseInt(minute))
-
+                
+                // if it's already pass the specific time of the day
+                // set day to tomorrow
+                if (reminderTime.getTime() < Date.now()) {
+                    reminderTime.setTime(reminder.getTime() + 86400000)
+                }
             } else {
                 // wrong format case
                 console.log('wrong date format')
                 msg.reply('wrong date format')
+                return
+            }
+
+            // check if the time is not in the past (since this bot can't time travel)
+            if (reminderTime.getTime() < Date.now()) {
+                msg.reply('Invalid time! the time must not be in the past.')
                 return
             }
 
@@ -181,7 +196,7 @@ const checkIntervalTime = 5 * 1000
 setInterval(() => {
     Reminder.find({}, (err, reminder) => {
         // filter reminder that will be reply
-        const currentTime = new Date().getTime()
+        const currentTime = Date.getTime()
         reminder = reminder.filter(e => (currentTime < e.date.getTime() && e.date.getTime() < currentTime + checkIntervalTime))
 
         // send reply for each msg
